@@ -5,20 +5,24 @@ const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const _ = require("lodash");
 var sid = "AC4818444fcf353850ab8b0f6edcfa90cb";
-var auth_token = "e93256812c5783e6cfabb1f506477062";
+var auth_token = "dab241de09613f87491b8da2f1c7a14a";
 var phone = "+16626667521";
 const client = require("twilio")(sid, auth_token);
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const sms = require("fast-two-sms");
+const { forEach } = require("lodash");
+const {
+  VerificationCheckInstance,
+} = require("twilio/lib/rest/verify/v2/service/verificationCheck");
 
 require("dotenv").config();
 
 const userSchema = new mongoose.Schema({
   name: String,
   email: String,
-  phone: Number,
+  phone: String,
   age: Number,
   address: String,
   state: String,
@@ -34,6 +38,10 @@ app.use(express.static("public"));
 mongoose.connect("mongodb://localhost:27017/hackathonDB");
 
 app.get("/", function (req, res) {
+  User.find({}, function (err, doc) {
+    console.log(doc);
+  });
+
   res.render("login");
 });
 
@@ -70,14 +78,31 @@ app.post("/", function (req, res) {
 app.post("/messaging", async function (req, res) {
   const number = req.body.phone;
   const message = req.body.message;
-  client.messages
-    .create({
-      body: message,
-      to: ["+919309911264"],
-      from: phone,
-    })
-    .then((message) => console.log(message.sid))
-    .catch((err) => console.log(err));
+  const send_all = req.body.sendAllCheck;
+  console.log(req.body);
+  if (send_all === "on") {
+    User.find({}, function (err, docs) {
+      docs.forEach(function (doc) {
+        client.messages
+          .create({
+            body: message,
+            from: phone,
+            to: "+91" + doc.phone,
+          })
+          .then((message) => console.log(message.sid));
+      });
+    });
+  } else {
+    client.messages
+      .create({
+        body: message,
+        from: phone,
+        to: number,
+      })
+      .then((message) => console.log(message.sid));
+  }
+
+  res.render("messaging");
 });
 
 app.post("/registration", function (req, res) {
